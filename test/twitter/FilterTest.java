@@ -6,6 +6,7 @@ package twitter;
 import static org.junit.Assert.*;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -13,17 +14,31 @@ import org.junit.Test;
 
 public class FilterTest {
 
-    /*
-     * TODO: your testing strategies for these methods should go here.
-     * See the ic03-testing exercise for examples of what a testing strategy comment looks like.
-     * Make sure you have partitions.
+    /* Testing strategy
+     *
+     * writtenBy(tweets, username):
+     *   tweets by that user: none, one, several
+     *   username case: same as author, different from author
+     *
+     * inTimespan(tweets, timespan):
+     *   tweets inside: none, some, all
+     *   timestamp equal to start or end (endpoints are included)
+     *
+     * containing(tweets, words):
+     *   words.size(): 0, 1, more than 1
+     *   case of the word: same, different from the tweet
+     *   word appears only inside a longer word (no match)
+     *
+     * Every result must keep the order of the input list.
      */
     
-    private static final Instant d1 = Instant.parse("2016-02-17T10:00:00Z");
-    private static final Instant d2 = Instant.parse("2016-02-17T11:00:00Z");
+    private static final Instant t1 = Instant.parse("2016-03-01T08:15:00Z");
+    private static final Instant t2 = Instant.parse("2016-03-01T09:40:00Z");
+    private static final Instant t3 = Instant.parse("2016-03-02T18:05:00Z");
     
-    private static final Tweet tweet1 = new Tweet(1, "alyssa", "is it reasonable to talk about rivest so much?", d1);
-    private static final Tweet tweet2 = new Tweet(2, "bbitdiddle", "rivest talk in 30 minutes #hype", d2);
+    private static final Tweet first = new Tweet(10, "ben_b", "Lab is due on Friday", t1);
+    private static final Tweet second = new Tweet(11, "louis", "the lab is long but fine", t2);
+    private static final Tweet third = new Tweet(12, "Ben_B", "labs and more labs #tired", t3);
     
     @Test(expected=AssertionError.class)
     public void testAssertionsEnabled() {
@@ -31,32 +46,65 @@ public class FilterTest {
     }
     
     @Test
-    public void testWrittenByMultipleTweetsSingleResult() {
-        List<Tweet> writtenBy = Filter.writtenBy(Arrays.asList(tweet1, tweet2), "alyssa");
-        
-        assertEquals("expected singleton list", 1, writtenBy.size());
-        assertTrue("expected list to contain tweet", writtenBy.contains(tweet1));
+    public void testWrittenByNobody() {
+        List<Tweet> result = Filter.writtenBy(Arrays.asList(first, second, third), "eva");
+        assertTrue(result.isEmpty());
     }
     
     @Test
-    public void testInTimespanMultipleTweetsMultipleResults() {
-        Instant testStart = Instant.parse("2016-02-17T09:00:00Z");
-        Instant testEnd = Instant.parse("2016-02-17T12:00:00Z");
-        
-        List<Tweet> inTimespan = Filter.inTimespan(Arrays.asList(tweet1, tweet2), new Timespan(testStart, testEnd));
-        
-        assertFalse("expected non-empty list", inTimespan.isEmpty());
-        assertTrue("expected list to contain tweets", inTimespan.containsAll(Arrays.asList(tweet1, tweet2)));
-        assertEquals("expected same order", 0, inTimespan.indexOf(tweet1));
+    public void testWrittenByOne() {
+        List<Tweet> result = Filter.writtenBy(Arrays.asList(first, second, third), "louis");
+        assertEquals(Arrays.asList(second), result);
     }
     
     @Test
-    public void testContaining() {
-        List<Tweet> containing = Filter.containing(Arrays.asList(tweet1, tweet2), Arrays.asList("talk"));
-        
-        assertFalse("expected non-empty list", containing.isEmpty());
-        assertTrue("expected list to contain tweets", containing.containsAll(Arrays.asList(tweet1, tweet2)));
-        assertEquals("expected same order", 0, containing.indexOf(tweet1));
+    public void testWrittenBySeveralIgnoringCase() {
+        List<Tweet> result = Filter.writtenBy(Arrays.asList(first, second, third), "BEN_B");
+        assertEquals(Arrays.asList(first, third), result);
+    }
+    
+    @Test
+    public void testInTimespanAll() {
+        Timespan span = new Timespan(Instant.parse("2016-03-01T00:00:00Z"), Instant.parse("2016-03-03T00:00:00Z"));
+        List<Tweet> result = Filter.inTimespan(Arrays.asList(third, first, second), span);
+        assertEquals(Arrays.asList(third, first, second), result);
+    }
+    
+    @Test
+    public void testInTimespanEndpointsIncluded() {
+        List<Tweet> result = Filter.inTimespan(Arrays.asList(first, second, third), new Timespan(t1, t2));
+        assertEquals(Arrays.asList(first, second), result);
+    }
+    
+    @Test
+    public void testInTimespanNone() {
+        Timespan span = new Timespan(Instant.parse("2016-03-01T10:00:00Z"), Instant.parse("2016-03-01T12:00:00Z"));
+        List<Tweet> result = Filter.inTimespan(Arrays.asList(first, second, third), span);
+        assertTrue(result.isEmpty());
+    }
+    
+    @Test
+    public void testContainingNoWords() {
+        List<Tweet> result = Filter.containing(Arrays.asList(first, second), new ArrayList<String>());
+        assertTrue(result.isEmpty());
+    }
+    
+    @Test
+    public void testContainingDifferentCase() {
+        List<Tweet> result = Filter.containing(Arrays.asList(first, second, third), Arrays.asList("LAB"));
+        assertEquals(Arrays.asList(first, second), result);
+    }
+    
+    @Test
+    public void testContainingSeveralWords() {
+        List<Tweet> result = Filter.containing(Arrays.asList(first, second, third), Arrays.asList("friday", "#tired"));
+        assertEquals(Arrays.asList(first, third), result);
+    }
+    
+    @Test
+    public void testContainingPartOfWordOnly() {
+        List<Tweet> result = Filter.containing(Arrays.asList(first, second, third), Arrays.asList("fin", "tire"));
+        assertTrue(result.isEmpty());
     }
 
     /*
