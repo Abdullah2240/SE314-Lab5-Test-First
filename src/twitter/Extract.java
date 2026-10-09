@@ -3,6 +3,8 @@
  */
 package twitter;
 
+import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -24,7 +26,22 @@ public class Extract {
      *         every tweet in the list.
      */
     public static Timespan getTimespan(List<Tweet> tweets) {
-        throw new RuntimeException("not implemented");
+        if (tweets.isEmpty()) {
+            Instant now = Instant.now();
+            return new Timespan(now, now);
+        }
+        Instant earliest = Instant.MAX;
+        Instant latest = Instant.MIN;
+        for (Tweet tweet : tweets) {
+            Instant time = tweet.getTimestamp();
+            if (time.compareTo(earliest) < 0) {
+                earliest = time;
+            }
+            if (time.compareTo(latest) > 0) {
+                latest = time;
+            }
+        }
+        return new Timespan(earliest, latest);
     }
 
     /**
@@ -43,7 +60,27 @@ public class Extract {
      *         include a username at most once.
      */
     public static Set<String> getMentionedUsers(List<Tweet> tweets) {
-        throw new RuntimeException("not implemented");
+        Set<String> mentioned = new HashSet<>();
+        for (Tweet tweet : tweets) {
+            String text = tweet.getText();
+            for (int at = text.indexOf('@'); at >= 0; at = text.indexOf('@', at + 1)) {
+                if (at > 0 && isUsernameChar(text.charAt(at - 1))) {
+                    continue;
+                }
+                int end = at + 1;
+                while (end < text.length() && isUsernameChar(text.charAt(end))) {
+                    end++;
+                }
+                if (end > at + 1) {
+                    mentioned.add(text.substring(at + 1, end).toLowerCase());
+                }
+            }
+        }
+        return mentioned;
+    }
+
+    private static boolean isUsernameChar(char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
     }
 
 }
