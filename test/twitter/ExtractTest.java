@@ -7,7 +7,6 @@ import static org.junit.Assert.*;
 
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,30 +14,27 @@ import org.junit.Test;
 
 public class ExtractTest {
 
-    /* Testing strategy
+    /*
+     * Testing strategy
      *
-     * getTimespan(tweets):
-     *   tweets.size(): 1, 2, more than 2
-     *   input order: oldest first, newest first, mixed
-     *   two tweets with the same timestamp: yes, no
+     * getTimespan(): partition tweet lists by size (one versus several), and
+     * for several tweets by timestamp order (already ordered versus unordered)
+     * and by whether timestamp values repeat. The specification requires the
+     * minimum-length interval, so each test checks the earliest and latest
+     * values exactly.
      *
-     * getMentionedUsers(tweets):
-     *   mentions in the text: none, one, several
-     *   username case: same, different (same user is counted once)
-     *   character before "@": start of text, space, username character (not a mention)
-     *   character after the username: end of text, punctuation, space
-     *
-     * The spec allows any case in the result, so usernames are lowercased before comparing.
+     * getMentionedUsers(): partition text by no mention versus mentions; valid
+     * mention at text boundaries versus next to punctuation; repeated users
+     * with different case; and an @ sequence invalidated by a username
+     * character immediately before or after it. Returned spelling is not
+     * specified, so tests compare normalized usernames.
      */
     
-    private static final Instant t1 = Instant.parse("2016-03-01T08:15:00Z");
-    private static final Instant t2 = Instant.parse("2016-03-01T09:40:00Z");
-    private static final Instant t3 = Instant.parse("2016-03-02T18:05:00Z");
+    private static final Instant d1 = Instant.parse("2016-02-17T10:00:00Z");
+    private static final Instant d2 = Instant.parse("2016-02-17T11:00:00Z");
     
-    private static final Tweet first = new Tweet(10, "ben_b", "@louis lab is due on friday", t1);
-    private static final Tweet second = new Tweet(11, "louis", "ok, working on it with @Ben_B and @cy-hacker.", t2);
-    private static final Tweet third = new Tweet(12, "cy-hacker", "anyone free tonight? write to cy@mit.edu", t3);
-    private static final Tweet fourth = new Tweet(13, "eva", "no plans today", t2);
+    private static final Tweet tweet1 = new Tweet(1, "alyssa", "is it reasonable to talk about rivest so much?", d1);
+    private static final Tweet tweet2 = new Tweet(2, "bbitdiddle", "rivest talk in 30 minutes #hype", d2);
     
     @Test(expected=AssertionError.class)
     public void testAssertionsEnabled() {
@@ -46,64 +42,65 @@ public class ExtractTest {
     }
     
     @Test
-    public void testTimespanSingleTweet() {
-        Timespan span = Extract.getTimespan(Arrays.asList(third));
-        assertEquals(t3, span.getStart());
-        assertEquals(t3, span.getEnd());
+    public void testGetTimespanTwoTweets() {
+        Timespan timespan = Extract.getTimespan(Arrays.asList(tweet1, tweet2));
+        
+        assertEquals("expected start", d1, timespan.getStart());
+        assertEquals("expected end", d2, timespan.getEnd());
+    }
+
+    @Test
+    public void testGetTimespanOneTweet() {
+        Timespan timespan = Extract.getTimespan(Arrays.asList(tweet2));
+
+        assertEquals("single tweet start", d2, timespan.getStart());
+        assertEquals("single tweet end", d2, timespan.getEnd());
+    }
+
+    @Test
+    public void testGetTimespanUnorderedTweetsWithRepeatedTimestamp() {
+        Instant d0 = Instant.parse("2016-02-17T09:00:00Z");
+        Tweet earliest = new Tweet(3, "carol", "early", d0);
+        Tweet repeatedLatest = new Tweet(4, "dana", "late too", d2);
+
+        Timespan timespan = Extract.getTimespan(Arrays.asList(tweet2, earliest, repeatedLatest));
+
+        assertEquals("earliest timestamp", d0, timespan.getStart());
+        assertEquals("latest timestamp", d2, timespan.getEnd());
     }
     
     @Test
-    public void testTimespanNewestFirst() {
-        Timespan span = Extract.getTimespan(Arrays.asList(second, first));
-        assertEquals(t1, span.getStart());
-        assertEquals(t2, span.getEnd());
+    public void testGetMentionedUsersNoMention() {
+        Set<String> mentionedUsers = Extract.getMentionedUsers(Arrays.asList(tweet1));
+        
+        assertTrue("expected empty set", mentionedUsers.isEmpty());
     }
-    
+
     @Test
-    public void testTimespanMixedOrderSameTime() {
-        Timespan span = Extract.getTimespan(Arrays.asList(second, third, first, fourth));
-        assertEquals(t1, span.getStart());
-        assertEquals(t3, span.getEnd());
+    public void testGetMentionedUsersDistinctCaseInsensitiveAndPunctuationBounded() {
+        Tweet mentions = new Tweet(5, "erin", "@Alice, meet @bob-2 and @ALICE!", d1);
+
+        Set<String> mentionedUsers = Extract.getMentionedUsers(Arrays.asList(mentions));
+
+        assertEquals("two logical users", 2, mentionedUsers.size());
+        assertEquals(new HashSet<String>(Arrays.asList("alice", "bob-2")), lowercase(mentionedUsers));
     }
-    
+
     @Test
-    public void testMentionedUsersNone() {
-        Set<String> users = Extract.getMentionedUsers(Arrays.asList(fourth));
-        assertTrue(users.isEmpty());
+    public void testGetMentionedUsersRejectsEmailStyleSequence() {
+        Tweet invalid = new Tweet(6, "frank", "mail a@alice.com and @bob_2x, but @carol.", d2);
+
+        Set<String> mentionedUsers = Extract.getMentionedUsers(Arrays.asList(invalid));
+
+        assertEquals(new HashSet<String>(Arrays.asList("bob_2x", "carol")), lowercase(mentionedUsers));
     }
-    
-    @Test
-    public void testMentionedUsersOneAtStart() {
-        Set<String> users = toLower(Extract.getMentionedUsers(Arrays.asList(first)));
-        assertEquals(Collections.singleton("louis"), users);
-    }
-    
-    @Test
-    public void testMentionedUsersSeveralBeforePunctuation() {
-        Set<String> users = toLower(Extract.getMentionedUsers(Arrays.asList(second)));
-        assertEquals(new HashSet<>(Arrays.asList("ben_b", "cy-hacker")), users);
-    }
-    
-    @Test
-    public void testMentionedUsersEmailIgnored() {
-        Set<String> users = Extract.getMentionedUsers(Arrays.asList(third));
-        assertTrue(users.isEmpty());
-    }
-    
-    @Test
-    public void testMentionedUsersSameUserDifferentCase() {
-        Tweet upper = new Tweet(14, "eva", "@LOUIS see you", t3);
-        Set<String> users = Extract.getMentionedUsers(Arrays.asList(first, upper));
-        assertEquals(1, users.size());
-        assertEquals(Collections.singleton("louis"), toLower(users));
-    }
-    
-    private static Set<String> toLower(Set<String> names) {
-        Set<String> lower = new HashSet<>();
-        for (String name : names) {
-            lower.add(name.toLowerCase());
+
+    private static Set<String> lowercase(Set<String> usernames) {
+        Set<String> normalized = new HashSet<String>();
+        for (String username : usernames) {
+            normalized.add(username.toLowerCase());
         }
-        return lower;
+        return normalized;
     }
 
     /*

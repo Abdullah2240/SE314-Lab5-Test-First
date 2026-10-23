@@ -3,10 +3,8 @@
  */
 package twitter;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 /**
  * Filter consists of methods that filter a list of tweets for those matching a
@@ -30,9 +28,13 @@ public class Filter {
      *         in the same order as in the input list.
      */
     public static List<Tweet> writtenBy(List<Tweet> tweets, String username) {
-        return tweets.stream()
-                .filter(tweet -> tweet.getAuthor().equalsIgnoreCase(username))
-                .collect(Collectors.toList());
+        List<Tweet> matches = new ArrayList<Tweet>();
+        for (Tweet tweet : tweets) {
+            if (tweet.getAuthor().equalsIgnoreCase(username)) {
+                matches.add(tweet);
+            }
+        }
+        return matches;
     }
 
     /**
@@ -46,10 +48,14 @@ public class Filter {
      *         in the same order as in the input list.
      */
     public static List<Tweet> inTimespan(List<Tweet> tweets, Timespan timespan) {
-        return tweets.stream()
-                .filter(tweet -> tweet.getTimestamp().compareTo(timespan.getStart()) >= 0
-                        && tweet.getTimestamp().compareTo(timespan.getEnd()) <= 0)
-                .collect(Collectors.toList());
+        List<Tweet> matches = new ArrayList<Tweet>();
+        for (Tweet tweet : tweets) {
+            if (!tweet.getTimestamp().isBefore(timespan.getStart())
+                    && !tweet.getTimestamp().isAfter(timespan.getEnd())) {
+                matches.add(tweet);
+            }
+        }
+        return matches;
     }
 
     /**
@@ -68,17 +74,25 @@ public class Filter {
      *         same order as in the input list.
      */
     public static List<Tweet> containing(List<Tweet> tweets, List<String> words) {
-        List<Tweet> matches = new ArrayList<>();
+        List<Tweet> matches = new ArrayList<Tweet>();
         for (Tweet tweet : tweets) {
-            List<String> tweetWords = Arrays.asList(tweet.getText().toLowerCase().split(" "));
-            for (String word : words) {
-                if (tweetWords.contains(word.toLowerCase())) {
-                    matches.add(tweet);
-                    break;
-                }
+            String[] tweetWords = tweet.getText().split("\\s+");
+            if (containsAny(tweetWords, words)) {
+                matches.add(tweet);
             }
         }
         return matches;
+    }
+
+    private static boolean containsAny(String[] tweetWords, List<String> requestedWords) {
+        for (String tweetWord : tweetWords) {
+            for (String requestedWord : requestedWords) {
+                if (tweetWord.equalsIgnoreCase(requestedWord)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 }

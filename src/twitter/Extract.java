@@ -3,10 +3,12 @@
  */
 package twitter;
 
-import java.time.Instant;
-import java.util.HashSet;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Extract consists of methods that extract information from a list of tweets.
@@ -16,6 +18,9 @@ import java.util.Set;
  * private methods or classes if you like.
  */
 public class Extract {
+
+    private static final Pattern MENTION = Pattern.compile(
+            "(?<![A-Za-z0-9_-])@([A-Za-z0-9_-]+)(?![A-Za-z0-9_-])");
 
     /**
      * Get the time period spanned by tweets.
@@ -27,18 +32,18 @@ public class Extract {
      */
     public static Timespan getTimespan(List<Tweet> tweets) {
         if (tweets.isEmpty()) {
-            Instant now = Instant.now();
-            return new Timespan(now, now);
+            throw new IllegalArgumentException("tweets must not be empty");
         }
-        Instant earliest = Instant.MAX;
-        Instant latest = Instant.MIN;
+
+        java.time.Instant earliest = tweets.get(0).getTimestamp();
+        java.time.Instant latest = earliest;
         for (Tweet tweet : tweets) {
-            Instant time = tweet.getTimestamp();
-            if (time.compareTo(earliest) < 0) {
-                earliest = time;
+            java.time.Instant timestamp = tweet.getTimestamp();
+            if (timestamp.isBefore(earliest)) {
+                earliest = timestamp;
             }
-            if (time.compareTo(latest) > 0) {
-                latest = time;
+            if (timestamp.isAfter(latest)) {
+                latest = timestamp;
             }
         }
         return new Timespan(earliest, latest);
@@ -60,27 +65,14 @@ public class Extract {
      *         include a username at most once.
      */
     public static Set<String> getMentionedUsers(List<Tweet> tweets) {
-        Set<String> mentioned = new HashSet<>();
+        Set<String> mentionedUsers = new HashSet<String>();
         for (Tweet tweet : tweets) {
-            String text = tweet.getText();
-            for (int at = text.indexOf('@'); at >= 0; at = text.indexOf('@', at + 1)) {
-                if (at > 0 && isUsernameChar(text.charAt(at - 1))) {
-                    continue;
-                }
-                int end = at + 1;
-                while (end < text.length() && isUsernameChar(text.charAt(end))) {
-                    end++;
-                }
-                if (end > at + 1) {
-                    mentioned.add(text.substring(at + 1, end).toLowerCase());
-                }
+            Matcher matcher = MENTION.matcher(tweet.getText());
+            while (matcher.find()) {
+                mentionedUsers.add(matcher.group(1).toLowerCase(Locale.ROOT));
             }
         }
-        return mentioned;
-    }
-
-    private static boolean isUsernameChar(char c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+        return mentionedUsers;
     }
 
 }
