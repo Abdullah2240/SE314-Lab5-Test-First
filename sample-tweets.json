@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "user.screen_name": "Ernie",
+    "text": "Hello @Bert and @Abby",
+    "created_at": "Fri Oct 23 09:00:00 +0000 2026"
+  },
+  {
+    "id": 2,
+    "user.screen_name": "Zoe",
+    "text": "Thanks @Bert",
+    "created_at": "Fri Oct 23 09:05:00 +0000 2026"
+  },
+  {
+    "id": 3,
+    "user.screen_name": "Abby",
+    "text": "Good point @Bert",
+    "created_at": "Fri Oct 23 09:10:00 +0000 2026"
+  },
+  {
+    "id": 4,
+    "user.screen_name": "Bert",
+    "text": "Hi @Abby",
+    "created_at": "Fri Oct 23 09:15:00 +0000 2026"
+  },
+  {
+    "id": 5,
+    "user.screen_name": "Ernie",
+    "text": "See you @Bert",
+    "created_at": "Fri Oct 23 09:20:00 +0000 2026"
+  }
+]

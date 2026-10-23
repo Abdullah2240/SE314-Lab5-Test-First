@@ -44,9 +44,10 @@ public class Main {
             throw new Error("Always run main and tests with assertions enabled");
         } catch (AssertionError ae) { }
         
+        final URL source = args.length > 0 ? makeURLAssertWellFormatted(args[0]) : SAMPLE_SERVER;
         final List<Tweet> tweets;
         try {
-            tweets = TweetReader.readTweetsFromWeb(SAMPLE_SERVER);
+            tweets = TweetReader.readTweetsFromWeb(source);
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }

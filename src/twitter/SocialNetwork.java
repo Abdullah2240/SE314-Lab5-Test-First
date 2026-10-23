@@ -3,7 +3,12 @@
  */
 package twitter;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -41,7 +46,19 @@ public class SocialNetwork {
      *         either authors or @-mentions in the list of tweets.
      */
     public static Map<String, Set<String>> guessFollowsGraph(List<Tweet> tweets) {
-        throw new RuntimeException("not implemented");
+        Map<String, Set<String>> graph = new HashMap<>();
+        for (Tweet tweet : tweets) {
+            // Mentions are the required evidence; the spec leaves other clues optional.
+            String author = tweet.getAuthor().toLowerCase(Locale.ROOT);
+            for (String mentioned : Extract.getMentionedUsers(
+                    Collections.singletonList(tweet))) {
+                if (!author.equals(mentioned)) {
+                    graph.computeIfAbsent(author, ignored -> new HashSet<>())
+                            .add(mentioned);
+                }
+            }
+        }
+        return graph;
     }
 
     /**
@@ -54,7 +71,24 @@ public class SocialNetwork {
      *         descending order of follower count.
      */
     public static List<String> influencers(Map<String, Set<String>> followsGraph) {
-        throw new RuntimeException("not implemented");
+        Map<String, Integer> followerCounts = new HashMap<>();
+        for (Map.Entry<String, Set<String>> entry : followsGraph.entrySet()) {
+            // A key is a user even when nobody follows that user.
+            followerCounts.putIfAbsent(
+                    entry.getKey().toLowerCase(Locale.ROOT), 0);
+            for (String followed : entry.getValue()) {
+                String username = followed.toLowerCase(Locale.ROOT);
+                followerCounts.merge(username, 1, Integer::sum);
+            }
+        }
+
+        List<String> usernames = new ArrayList<>(followerCounts.keySet());
+        usernames.sort((first, second) -> {
+            int byFollowers = Integer.compare(
+                    followerCounts.get(second), followerCounts.get(first));
+            return byFollowers != 0 ? byFollowers : first.compareTo(second);
+        });
+        return usernames;
     }
 
 }
