@@ -36,7 +36,7 @@ public class Main {
      * Main method of the program. Fetches a sample of tweets and prints some
      * facts about it.
      * 
-     * @param args command-line arguments (not used)
+     * @param args optional URL for the tweet sample; without it, use the MIT server
      */
     public static void main(String[] args) {
         try {
